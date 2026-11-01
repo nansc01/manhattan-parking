@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1b2420">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Manhattan Free Parking</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+:root{
+  --bg:#eef0ee; --panel:#ffffff; --fg:#1b2420; --muted:#5d6a64; --line:#d3d9d5;
+  --go:#0f9d52; --go-soft:#e1f2e8; --stop:#d7263d; --stop-soft:#fbe5e8; --pay:#e08a00; --pay-soft:#fdf0db;
+  --me:#1a73e8; --shadow:0 6px 24px rgba(20,30,25,.18);
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141917; --panel:#1d2421; --fg:#e8ede9; --muted:#9aa8a1; --line:#33403a;
+  --go:#3fd283; --go-soft:#173326; --stop:#ff5a6e; --stop-soft:#3a1c22; --pay:#ffb340; --pay-soft:#3a2b14;
+  --me:#5ea2ff; --shadow:0 6px 24px rgba(0,0,0,.5); color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;overflow:hidden}
+#map{position:fixed;inset:0;background:var(--bg)}
+.top{position:fixed;left:0;right:0;top:0;z-index:1000;padding:calc(env(safe-area-inset-top,0px) + 10px) max(12px,env(safe-area-inset-right,0px)) 0 max(12px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.top > *{pointer-events:auto}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--panel);border-radius:12px;padding:8px 10px 8px 12px;box-shadow:var(--shadow)}
+.bar b{font-family:var(--display);font-weight:800;font-size:1.25rem;letter-spacing:.02em;text-transform:uppercase;white-space:nowrap}
+.bar b span{color:var(--go)}
+.today{font-size:.82rem;color:var(--muted);text-align:right;line-height:1.2}
+.times{display:flex;gap:6px}
+.times button{flex:1;font:700 .95rem/1 var(--display);letter-spacing:.05em;text-transform:uppercase;padding:9px 0;border-radius:999px;border:0;background:var(--panel);color:var(--fg);box-shadow:var(--shadow);cursor:pointer}
+.times button[aria-pressed="true"]{background:var(--fg);color:var(--panel)}
+.legend{display:flex;gap:6px;align-self:flex-start;background:var(--panel);border-radius:999px;padding:6px 10px;box-shadow:var(--shadow);font-size:.8rem;font-weight:700}
+.legend i{display:inline-block;width:14px;height:5px;border-radius:3px;margin-right:4px;vertical-align:middle}
+.locate{position:fixed;z-index:1000;right:max(12px,env(safe-area-inset-right,0px));width:52px;height:52px;border-radius:50%;border:0;background:var(--panel);color:var(--me);box-shadow:var(--shadow);display:grid;place-items:center;cursor:pointer}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1000;background:var(--panel);border-radius:16px 16px 0 0;box-shadow:var(--shadow);padding:10px max(14px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 10px) max(14px,env(safe-area-inset-left,0px));max-height:46%;overflow:auto}
+.sheet h2{font:800 1.05rem/1 var(--display);text-transform:uppercase;letter-spacing:.06em;margin:4px 0 6px;color:var(--muted)}
+.msg{padding:6px 0 4px;color:var(--muted)}
+.spot{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.spot > div{min-width:0}
+.spot .st{font-weight:700;font-size:1.05rem;line-height:1.2}
+.spot .sub{font-size:.88rem;color:var(--muted)}
+.spot .until{font-size:.88rem;font-weight:700;color:var(--go)}
+.go{font:800 1rem/1 var(--display);letter-spacing:.06em;text-transform:uppercase;padding:12px 14px;border-radius:10px;background:var(--go);color:#fff;text-decoration:none}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--panel);color:var(--fg)}
+.leaflet-popup-content{margin:12px 14px;font-family:var(--body);font-size:.92rem;line-height:1.4}
+.pop h3{margin:0 0 2px;font:800 1.15rem/1.1 var(--display);text-transform:uppercase}
+.pop .s{font-weight:700;margin-bottom:6px}
+.pop ul{margin:6px 0 0;padding-left:16px;color:var(--muted);font-size:.82rem}
+.leaflet-control-attribution{font-size:10px}
+button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="map" aria-label="Map of parking rules by block"></div>
+
+<div class="top">
+  <div class="bar"><b>Manhattan <span>Free</span> Parking</b><div class="today" id="today"></div></div>
+  <div class="times" role="group" aria-label="When are you parking">
+    <button aria-pressed="true" data-h="0">Now</button>
+    <button aria-pressed="false" data-h="1">+1 hr</button>
+    <button aria-pressed="false" data-h="2">+2 hr</button>
+    <button aria-pressed="false" data-h="4">+4 hr</button>
+  </div>
+  <div class="times" id="places" role="group" aria-label="Search near">
+    <button aria-pressed="false" data-p="me">◎ Near me</button>
+    <button aria-pressed="true" data-p="0">★ 33rd &amp; 5th</button>
+  </div>
+  <div class="legend"><span><i style="background:var(--go)"></i>Free</span><span><i style="background:var(--pay)"></i>Meter</span><span><i style="background:var(--stop)"></i>No parking</span></div>
+</div>
+
+<button class="locate" id="locate" aria-label="Show my location">
+  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+</button>
+
+<div class="sheet" id="sheet">
+  <h2 id="sheetTitle">Free parking near you</h2>
+  <div id="list"><div class="msg">Finding you…</div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+<script src="core.js"></script>
+<script>
+const P=window.Park;
+proj4.defs("EPSG:2263","+proj=lcc +lat_1=41.03333333333333 +lat_2=40.66666666666666 +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000.0000000001 +y_0=0 +ellps=GRS80 +datum=NAD83 +to_meter=0.3048006096012192 +no_defs");
+const toLL=(x,y)=>{const [lon,lat]=proj4("EPSG:2263","WGS84",[x,y]);return [lat,lon];};
+const toSP=(lat,lon)=>proj4("WGS84","EPSG:2263",[lon,lat]);
+
+const dark=matchMedia("(prefers-color-scheme: dark)").matches;
+const map=L.map("map",{zoomControl:false,preferCanvas:true,renderer:L.canvas({tolerance:8})}).setView([40.7831,-73.9712],14);
+L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark?"dark_all":"light_all"}/{z}/{x}/{y}{r}.png`,{maxZoom:20,subdomains:"abcd",attribution:'&copy; OpenStreetMap &copy; CARTO · Signs: NYC DOT'}).addTo(map);
+const layer=L.layerGroup().addTo(map);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COLOR={free:css("--go"),pay:css("--pay"),stop:css("--stop")};
+
+// ---------- time
+let offsetH=0;
+const at=()=>Date.now()+offsetH*36e5;
+document.querySelectorAll(".times button").forEach(b=>b.onclick=()=>{offsetH=+b.dataset.h;document.querySelectorAll(".times button").forEach(x=>x.setAttribute("aria-pressed",x===b));render();});
+function whenLabel(t,from){const a=P.ny(t),b=P.ny(from);const d=Math.round((Date.parse(a.key)-Date.parse(b.key))/864e5);
+  return `${d===0?"today":d===1?"tomorrow":P.DAYS_LONG[a.dow]} ${P.hm(a.min)}`;}
+function todayLine(){const p=P.ny(Date.now()),h=P.HOL[p.key];const asp=!!h||p.dow===0,met=(h&&h[1])||p.dow===0;
+  document.getElementById("today").innerHTML=`${P.DAYS[p.dow]} ${P.hm(p.min)}<br>${asp?"No street cleaning":"Street cleaning on"}${met?" · meters free":""}`;}
+
+// ---------- data
+const CELL=2500, cells=new Map(), blocks=new Map();
+function nice(s){return (s||"").replace(/\s+/g," ").trim().replace(/\bWEST\b/g,"W").replace(/\bEAST\b/g,"E").replace(/\bNORTH\b/g,"N").replace(/\bSOUTH\b/g,"S")
+  .replace(/\bSTREET\b/g,"St").replace(/\bAVENUE\b/g,"Ave").replace(/\bBOULEVARD\b/g,"Blvd").replace(/\bDRIVE\b/g,"Dr").replace(/\bPLACE\b/g,"Pl").replace(/\bROAD\b/g,"Rd").replace(/\bPARKWAY\b/g,"Pkwy").replace(/\bTERRACE\b/g,"Ter")
+  .toLowerCase().replace(/\b([a-z])/g,c=>c.toUpperCase()).replace(/\b(\d+) (St)\b/g,(m,n,s)=>n+(/1[123]$/.test(n)?"th":n.endsWith("1")?"st":n.endsWith("2")?"nd":n.endsWith("3")?"rd":"th")+" "+s);}
+const SIDE={N:"north side",S:"south side",E:"east side",W:"west side"};
+async function loadCell(cx,cy){
+  const key=cx+":"+cy; if(cells.has(key))return; cells.set(key,"loading");
+  const x0=cx*CELL,y0=cy*CELL;
+  const q=new URLSearchParams({"$select":"order_number,on_street,from_street,to_street,side_of_street,sign_description,distance_from_intersection,sign_x_coord,sign_y_coord",
+    "$where":`record_type='Current' AND sign_x_coord::number between ${x0} and ${x0+CELL} AND sign_y_coord::number between ${y0} and ${y0+CELL} AND sign_description not like '%PANEL%' AND sign_description not like 'PAY-BY-CELL%'`,"$limit":"20000"});
+  try{
+    const r=await fetch("https://data.cityofnewyork.us/resource/nfid-uabd.json?"+q);
+    if(!r.ok)throw new Error(r.status);
+    const rows=await r.json();
+    for(const w of rows){
+      const sign=P.parseSign(w.sign_description||""); const x=+w.sign_x_coord,y=+w.sign_y_coord; if(!x||!y)continue;
+      const k=w.order_number+"|"+(w.side_of_street||"");
+      let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);}
+      if(sign)b.signs.set(sign.text,sign);
+      b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
+    }
+    cells.set(key,"done");
+  }catch(e){cells.delete(key);setMsg("Couldn't load parking signs. Check your connection and move the map to retry.");}
+}
+let loadingN=0;
+async function loadView(){
+  if(map.getZoom()<15){render();return;}
+  const b=map.getBounds();const cs=[b.getNorthWest(),b.getNorthEast(),b.getSouthWest(),b.getSouthEast()].map(c=>toSP(c.lat,c.lng));
+  const xs=cs.map(c=>c[0]),ys=cs.map(c=>c[1]);
+  const need=[];for(let cx=Math.floor(Math.min(...xs)/CELL);cx<=Math.floor(Math.max(...xs)/CELL);cx++)for(let cy=Math.floor(Math.min(...ys)/CELL);cy<=Math.floor(Math.max(...ys)/CELL);cy++)if(!cells.has(cx+":"+cy))need.push([cx,cy]);
+  if(!need.length){render();return;}
+  loadingN++;setMsg("Loading parking signs…");
+  await Promise.all(need.slice(0,30).map(([a,b])=>loadCell(a,b)));
+  loadingN--;render();
+}
+
+// ---------- draw
+function geom(b){const pts=[...b.pts.values()].sort((a,c)=>a.d-c.d).map(p=>p.ll);return pts;}
+function mid(pts){return pts[Math.floor(pts.length/2)];}
+function render(){
+  todayLine(); layer.clearLayers();
+  if(map.getZoom()<15){setMsg("Zoom in to see each block's parking.");return;}
+  const t=at(), view=map.getBounds().pad(.15);
+  for(const b of blocks.values()){
+    if(!b.signs.size)continue; const pts=geom(b); if(!pts.length||!view.contains(pts[0]))continue;
+    const signs=[...b.signs.values()]; const s=P.stateAt(signs,t); b.st=s.st; b.mid=mid(pts);
+    const opt={color:COLOR[s.st],weight:s.st==="free"?7:5,opacity:s.st==="free"?.95:.75,lineCap:"round"};
+    const shape=pts.length>1?L.polyline(pts,opt):L.circleMarker(pts[0],{...opt,radius:5,fillOpacity:.9});
+    shape.on("click",()=>L.popup({maxWidth:280}).setLatLng(b.mid).setContent(popup(b,signs,t)).openOn(map));
+    shape.addTo(layer);
+  }
+  renderList();
+}
+function stateLine(signs,t){const s=P.stateAt(signs,t),n=P.nextChange(signs,t,s.st,4);
+  const until=n?whenLabel(n.t,t):null;
+  if(s.st==="free")return {cls:"go",txt:until?`Free until ${until}`:"Free for 4+ days"};
+  if(s.st==="pay")return {cls:"pay",txt:"Pay meter"+(until?` until ${until}`:"")};
+  return {cls:"stop",txt:"No parking"+(until?` until ${until}`:"")};}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function popup(b,signs,t){const l=stateLine(signs,t);
+  return `<div class="pop"><h3>${esc(b.on)}</h3><div class="muted">${esc(b.from)} to ${esc(b.to)}${SIDE[b.side]?" · "+SIDE[b.side]:""}</div>
+  <div class="s" style="color:var(--${l.cls==="go"?"go":l.cls})">${l.txt}</div>
+  <a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener">Go</a>
+  <ul>${signs.map(s=>`<li>${esc(s.text)}</li>`).join("")}</ul></div>`;}
+const dirUrl=ll=>`https://www.google.com/maps/dir/?api=1&destination=${ll[0].toFixed(6)},${ll[1].toFixed(6)}&travelmode=driving`;
+
+// ---------- saved places
+const PLACES=[{name:"33rd St & 5th Ave",short:"33rd & 5th",ll:[40.7477,-73.9862]}];
+let place=0, placeMark=null, placeRing=null;
+function showPlace(i){
+  if(placeMark){map.removeLayer(placeMark);map.removeLayer(placeRing);placeMark=null;}
+  if(i==null)return;
+  const p=PLACES[i];
+  placeRing=L.circle(p.ll,{radius:300,color:css("--fg"),weight:2,dashArray:"6 6",fill:false,interactive:false}).addTo(map);
+  placeMark=L.marker(p.ll,{icon:L.divIcon({className:"",html:`<div style="background:var(--fg);color:var(--panel);font:800 13px/1 var(--display);padding:6px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-130%);box-shadow:var(--shadow)">★ ${p.short}</div>`,iconSize:[0,0]})}).addTo(map);
+}
+function choose(p){
+  document.querySelectorAll("#places button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.p===String(p)));
+  if(p==="me"){place=null;showPlace(null);if(me)map.setView(me,17);else{followed=false;startGPS();}}
+  else{place=+p;showPlace(place);map.setView(PLACES[place].ll,17);}
+  renderList();
+}
+document.querySelectorAll("#places button").forEach(b=>b.onclick=()=>choose(b.dataset.p));
+
+// ---------- nearby list
+let me=null;
+function dist(a,b){const R=20902231,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+const fmtD=f=>f<1000?`${Math.round(f/10)*10} ft`:`${(f/5280).toFixed(1)} mi`;
+function setMsg(t){document.getElementById("list").innerHTML=`<div class="msg">${t}</div>`;}
+function renderList(){
+  if(loadingN)return;
+  const origin=place!=null?PLACES[place].ll:(me||[map.getCenter().lat,map.getCenter().lng]);
+  document.getElementById("sheetTitle").textContent=place!=null?`Free parking near ${PLACES[place].short}`:me?"Free parking near you":"Free parking near map center";
+  const t=at();
+  const cand=[...blocks.values()].filter(b=>b.st==="free"&&b.mid).map(b=>({b,d:dist(origin,b.mid)})).sort((a,c)=>a.d-c.d).slice(0,25);
+  const scored=cand.map(c=>{const signs=[...c.b.signs.values()];const n=P.nextChange(signs,t,"free",4);return {...c,signs,n,dur:n?n.t-t:4*864e5};})
+    .filter(c=>c.dur>=60*6e4).slice(0,4);
+  if(!scored.length){setMsg(map.getZoom()<15?"Zoom in to see each block's parking.":"No free blocks in view. Zoom out a little or move the map.");return;}
+  document.getElementById("list").innerHTML=scored.map((c,i)=>`<div class="spot" data-i="${i}"><div><div class="st">${esc(c.b.on)}</div>
+    <div class="sub">${esc(c.b.from)} – ${esc(c.b.to)}${SIDE[c.b.side]?" · "+SIDE[c.b.side]:""} · ${fmtD(c.d)}</div>
+    <div class="until">${c.n?"Free until "+whenLabel(c.n.t,t):"Free for 4+ days"}</div></div>
+    <a class="go" href="${dirUrl(c.b.mid)}" target="_blank" rel="noopener">Go</a></div>`).join("");
+  document.querySelectorAll(".spot").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("a"))return;const c=scored[+el.dataset.i];map.flyTo(c.b.mid,18);}));
+}
+
+// ---------- my location
+let meDot=null,meRing=null,followed=false;
+function onPos(p){me=[p.coords.latitude,p.coords.longitude];
+  if(!meDot){meRing=L.circle(me,{radius:p.coords.accuracy,color:css("--me"),weight:1,fillOpacity:.1}).addTo(map);
+    meDot=L.circleMarker(me,{radius:9,color:"#fff",weight:3,fillColor:css("--me"),fillOpacity:1}).addTo(map);}
+  else{meDot.setLatLng(me);meRing.setLatLng(me).setRadius(p.coords.accuracy);}
+  if(!followed&&place==null){followed=true;map.setView(me,17);} else renderList();}
+function onErr(){if(!me&&place==null)setMsg("Location is off. Allow location for this site, or tap ★ 33rd & 5th.");}
+function startGPS(){if(!navigator.geolocation){onErr();return;}navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:10000,timeout:15000});}
+document.getElementById("locate").onclick=()=>{if(me)map.setView(me,17);else{followed=false;startGPS();}};
+
+// ---------- layout
+function placeBtn(){const h=document.getElementById("sheet").offsetHeight;document.getElementById("locate").style.bottom=(h+14)+"px";}
+new ResizeObserver(placeBtn).observe(document.getElementById("sheet"));
+let tmr;map.on("moveend",()=>{clearTimeout(tmr);tmr=setTimeout(loadView,250);});
+todayLine();showPlace(0);map.setView(PLACES[0].ll,17);startGPS();loadView();
+setInterval(()=>{if(offsetH===0)render();},60000);
+</script>
+</body>
+</html>
