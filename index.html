@@ -126,6 +126,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 <script src="core.js"></script>
+<script src="corrections.js"></script>
 <script>
 const P=window.Park;
 proj4.defs("EPSG:2263","+proj=lcc +lat_1=41.03333333333333 +lat_2=40.66666666666666 +lat_0=40.16666666666666 +lon_0=-74 +x_0=300000.0000000001 +y_0=0 +ellps=GRS80 +datum=NAD83 +to_meter=0.3048006096012192 +no_defs");
@@ -173,7 +174,8 @@ async function loadCell(cx,cy){
     for(const w of await r.json()){
       const sign=P.parseSign(w.sign_description||""); const x=+w.sign_x_coord,y=+w.sign_y_coord; if(!x||!y)continue;
       const k=w.order_number+"|"+(w.side_of_street||"");
-      let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);}
+      let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);
+        const fix=(window.CORRECTIONS||{})[k]; if(fix){b.fixed=fix.date;for(const d of fix.signs){const ps=P.parseSign(d);if(ps)b.signs.set(ps.text,ps);}}}
       if(sign)b.signs.set(sign.text,sign);
       if(/PAY-BY-CELL|MUNI-METER/i.test(w.sign_description||""))b.meterLoc=true;
       b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
@@ -235,7 +237,7 @@ function openPop(b){const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n
   const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">Meters are on or next to this block, but the city's data doesn't list their hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
   L.popup({maxWidth:270}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
     <div class="s">${line}</div>${s.st==="free"?`<a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a>`:""}
-    <details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
+    ${b.fixed?`<div class="between">✓ Sign checked on the street ${esc(b.fixed)}</div>`:""}<details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
 
 // ---------- saved places
 const PLACES=[{short:"18 W 33rd St",ll:[40.7481,-73.9862]}];
