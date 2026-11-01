@@ -178,7 +178,7 @@ async function loadCell(cx,cy){
       if(/PAY-BY-CELL|MUNI-METER/i.test(w.sign_description||""))b.meterLoc=true;
       b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
     }
-    cells.set(key,"done");
+    cells.set(key,"done"); for(const b of blocks.values())delete b.metNear;
   }catch(e){cells.delete(key);setMsg("Couldn't load parking signs. Check your connection, then move the map.");}
 }
 let loadingN=0;
@@ -194,8 +194,16 @@ async function loadView(){
 }
 
 // A block with meters but no passenger meter hours on file: likely paid, city data incomplete
+const hasMeter=b=>b.meterLoc||[...b.signs.values()].some(x=>x.kind==="meter");
+function metered(b){ // this block, or its neighbors on the same street and side, have meters
+  if(b.metNear!==undefined)return b.metNear;
+  if(hasMeter(b))return b.metNear=true;
+  const m=b.pts.values().next().value; if(!m)return b.metNear=false;
+  for(const o of blocks.values()){if(o===b||o.on!==b.on||o.side!==b.side||!hasMeter(o))continue;
+    const p=o.pts.values().next().value; if(p&&dist(m.ll,p.ll)<750)return b.metNear=true;}
+  return b.metNear=false;}
 function blockState(b,t){const signs=[...b.signs.values()],s=P.stateAt(signs,t);
-  if(s.st==="free"&&b.meterLoc&&!signs.some(x=>x.kind==="meter"))return {st:"check",why:null};
+  if(s.st==="free"&&metered(b)&&!signs.some(x=>x.kind==="meter"))return {st:"check",why:null};
   return s;}
 // ---------- draw: free blocks bold green, everything else thin and faded
 function render(){
@@ -224,7 +232,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 function between(b){return `between ${b.from} & ${b.to}${SIDE[b.side]?" · "+SIDE[b.side]:""}`;}
 function openPop(b){const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n=s.st==="check"?null:P.nextChange(signs,t,s.st,4);
   const u=n?" until "+whenLabel(n.t,t):"";
-  const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">This block has meters, but the city's data doesn't list evening hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
+  const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">Meters are on or next to this block, but the city's data doesn't list their hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
   L.popup({maxWidth:270}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
     <div class="s">${line}</div>${s.st==="free"?`<a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a>`:""}
     <details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
