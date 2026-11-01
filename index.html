@@ -56,7 +56,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:
 .sheet-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
 .sheet-head h2{margin:0;font:800 1.05rem/1.1 var(--display);font-stretch:108%;text-transform:uppercase;letter-spacing:-.01em}
 .count{font-size:.8rem;font-weight:700;color:var(--go-dark);background:var(--go-soft);padding:5px 10px;border-radius:999px;white-space:nowrap}
-#list{max-height:36vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:2px}
+#list{max-height:30vh;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:2px}
 .sheet.collapsed #list{display:none}
 .msg{padding:10px 0;color:var(--muted)}
 .spot{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;padding:12px;border-radius:16px;background:var(--panel);box-shadow:0 1px 3px rgba(15,29,22,.08);cursor:pointer;animation:rise .35s ease both}
@@ -67,7 +67,8 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:
 .street{font:800 1.1rem/1.15 var(--display);letter-spacing:-.01em}
 .between{font-size:.85rem;color:var(--muted);line-height:1.3;margin-top:1px}
 .until{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:.82rem;font-weight:700;color:var(--go-dark);background:var(--go-soft);padding:4px 9px;border-radius:999px}
-.until b{font:800 .9rem/1 var(--display)}
+.until b{font:800 .9rem/1 var(--display);white-space:nowrap}
+.until{white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
 .go{display:inline-flex;align-items:center;gap:6px;font:800 .95rem/1 var(--display);letter-spacing:.02em;padding:12px 14px;border-radius:14px;background:linear-gradient(150deg,var(--go),var(--go-2));color:#fff;text-decoration:none;box-shadow:0 4px 12px rgba(0,138,71,.35)}
 .go svg{flex:none}
 
@@ -210,7 +211,7 @@ function render(){
       L.polyline(b.pts2,{color:C.free,weight:7,opacity:1,lineCap:"round"}).on("click",()=>openPop(b)).addTo(lines);}
     else L.circleMarker(b.pts2[0],{radius:6,color:"#fff",weight:3,fillColor:C.free,fillOpacity:1}).on("click",()=>openPop(b)).addTo(lines);
   }
-  document.getElementById("count").textContent=free.length?`${free.length} free blocks in view`:"";
+  document.getElementById("count").textContent=free.length?`${free.length} free blocks`:"";
   renderList();
 }
 const dirUrl=ll=>`https://www.google.com/maps/dir/?api=1&destination=${ll[0].toFixed(6)},${ll[1].toFixed(6)}&travelmode=driving`;
@@ -237,7 +238,7 @@ function choose(p){
 document.querySelectorAll("#places button").forEach(b=>b.onclick=()=>choose(b.dataset.p));
 
 // ---------- list + numbered pins
-function durTxt(ms){const h=Math.floor(ms/36e5),m=Math.round((ms%36e5)/6e4);if(ms>=4*864e5-1)return "4+ days";if(h>=24)return `${Math.floor(h/24)}d ${h%24}h`;if(h>=1)return m>=30?`${h}.5 hr`:`${h} hr`;return `${m} min`;}
+function durTxt(ms){const h=Math.floor(ms/36e5),m=Math.round((ms%36e5)/6e4);if(ms>=4*864e5-1)return "4+ days";if(h>=48)return `${Math.floor(h/24)} days`;if(h>=10)return `${h} hr`;if(h>=1)return m>=30?`${h}.5 hr`:`${h} hr`;return `${m} min`;}
 function shortWhen(t,from){const a=P.ny(t),b=P.ny(from);const d=Math.round((Date.parse(a.key)-Date.parse(b.key))/864e5);return `${d===0?"":d===1?"tmrw ":P.DAYS[a.dow]+" "}${P.hm(a.min)}`;}
 let me=null;
 function dist(a,b){const R=20902231,r=Math.PI/180,dl=(b[0]-a[0])*r,dn=(b[1]-a[1])*r;const h=Math.sin(dl/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
@@ -246,7 +247,7 @@ function setMsg(t){document.getElementById("list").innerHTML=`<div class="msg">$
 function renderList(){
   if(loadingN)return; nums.clearLayers();
   const origin=place!=null?PLACES[place].ll:(me||[map.getCenter().lat,map.getCenter().lng]);
-  document.getElementById("sheetTitle").textContent=place!=null?`Free near ${PLACES[place].short}`:me?"Free near you":"Free near map center";
+  document.getElementById("sheetTitle").textContent=place!=null?`Near ${PLACES[place].short}`:me?"Near you":"Near map center";
   const t=at();
   const top=[...blocks.values()].filter(b=>b.st==="free"&&b.mid).map(b=>({b,d:dist(origin,b.mid)})).sort((a,c)=>a.d-c.d).slice(0,25)
     .map(c=>{const n=P.nextChange([...c.b.signs.values()],t,"free",4);return {...c,n,dur:n?n.t-t:4*864e5};})
@@ -255,7 +256,7 @@ function renderList(){
   top.forEach((c,i)=>L.marker(c.b.mid,{icon:L.divIcon({className:"",iconSize:[0,0],html:`<div class="num">${i+1}</div>`})}).on("click",()=>openPop(c.b)).addTo(nums));
   document.getElementById("list").innerHTML=top.map((c,i)=>`<div class="spot" data-i="${i}"><span class="n">${i+1}</span>
     <div><div class="street">${esc(c.b.on)}</div><div class="between">${esc(between(c.b))} · ${fmtD(c.d)}</div>
-    <div class="until"><b>${durTxt(c.dur)}</b> free${c.n?" · until "+shortWhen(c.n.t,t):""}</div></div>
+    <div class="until"><b>${durTxt(c.dur)}</b> free${c.n?" · "+shortWhen(c.n.t,t):""}</div></div>
     <a class="go" href="${dirUrl(c.b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a></div>`).join("");
   document.querySelectorAll(".spot").forEach(el=>el.addEventListener("click",e=>{if(e.target.closest("a"))return;map.flyTo(top[+el.dataset.i].b.mid,18);}));
 }
