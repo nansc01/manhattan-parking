@@ -167,7 +167,7 @@ async function loadCell(cx,cy){
   const key=cx+":"+cy; if(cells.has(key))return; cells.set(key,"loading");
   const x0=cx*CELL,y0=cy*CELL;
   const q=new URLSearchParams({"$select":"order_number,on_street,from_street,to_street,side_of_street,sign_description,distance_from_intersection,sign_x_coord,sign_y_coord",
-    "$where":`record_type='Current' AND sign_x_coord::number between ${x0} and ${x0+CELL} AND sign_y_coord::number between ${y0} and ${y0+CELL} AND sign_description not like '%PANEL%' AND sign_description not like 'PAY-BY-CELL%'`,"$limit":"20000"});
+    "$where":`record_type='Current' AND sign_x_coord::number between ${x0} and ${x0+CELL} AND sign_y_coord::number between ${y0} and ${y0+CELL} AND sign_description not like '%PANEL%'`,"$limit":"20000"});
   try{
     const r=await fetch("https://data.cityofnewyork.us/resource/nfid-uabd.json?"+q); if(!r.ok)throw new Error(r.status);
     for(const w of await r.json()){
@@ -175,6 +175,7 @@ async function loadCell(cx,cy){
       const k=w.order_number+"|"+(w.side_of_street||"");
       let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);}
       if(sign)b.signs.set(sign.text,sign);
+      if(/PAY-BY-CELL|MUNI-METER/i.test(w.sign_description||""))b.meterLoc=true;
       b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
     }
     cells.set(key,"done");
@@ -192,6 +193,10 @@ async function loadView(){
   loadingN--; render();
 }
 
+// A block with meters but no passenger meter hours on file: likely paid, city data incomplete
+function blockState(b,t){const signs=[...b.signs.values()],s=P.stateAt(signs,t);
+  if(s.st==="free"&&b.meterLoc&&!signs.some(x=>x.kind==="meter"))return {st:"check",why:null};
+  return s;}
 // ---------- draw: free blocks bold green, everything else thin and faded
 function render(){
   statusLine(); lines.clearLayers();
@@ -200,9 +205,9 @@ function render(){
   for(const b of blocks.values()){
     if(!b.signs.size)continue;
     const pts=[...b.pts.values()].sort((a,c)=>a.d-c.d).map(p=>p.ll); if(!view.contains(pts[0]))continue;
-    const signs=[...b.signs.values()], s=P.stateAt(signs,t); b.st=s.st; b.mid=pts[Math.floor(pts.length/2)]; b.pts2=pts;
+    const s=blockState(b,t); b.st=s.st; b.mid=pts[Math.floor(pts.length/2)]; b.pts2=pts;
     if(s.st==="free"){free.push(b);continue;}
-    const o={color:C[s.st],weight:3,opacity:s.st==="pay"?.6:.35,lineCap:"round"};
+    const o={color:s.st==="check"?C.pay:C[s.st],weight:3,opacity:s.st==="stop"?.35:.6,lineCap:"round",dashArray:s.st==="check"?"6 6":null};
     const sh=pts.length>1?L.polyline(pts,o):L.circleMarker(pts[0],{...o,radius:3,fillOpacity:.5});
     sh.on("click",()=>openPop(b));sh.addTo(lines);
   }
@@ -217,9 +222,9 @@ function render(){
 const dirUrl=ll=>`https://www.google.com/maps/dir/?api=1&destination=${ll[0].toFixed(6)},${ll[1].toFixed(6)}&travelmode=driving`;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function between(b){return `between ${b.from} & ${b.to}${SIDE[b.side]?" · "+SIDE[b.side]:""}`;}
-function openPop(b){const t=at(),signs=[...b.signs.values()],s=P.stateAt(signs,t),n=P.nextChange(signs,t,s.st,4);
+function openPop(b){const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n=s.st==="check"?null:P.nextChange(signs,t,s.st,4);
   const u=n?" until "+whenLabel(n.t,t):"";
-  const line=s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
+  const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">This block has meters, but the city's data doesn't list evening hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
   L.popup({maxWidth:270}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
     <div class="s">${line}</div>${s.st==="free"?`<a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a>`:""}
     <details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
