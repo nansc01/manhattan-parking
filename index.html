@@ -114,7 +114,7 @@ const toLL=(x,y)=>{const [lon,lat]=proj4("EPSG:2263","WGS84",[x,y]);return [lat,
 const toSP=(lat,lon)=>proj4("WGS84","EPSG:2263",[lon,lat]);
 
 // Clean gray base map with street names on top (Esri, no key needed)
-const map=L.map("map",{zoomControl:false,preferCanvas:true,renderer:L.canvas({tolerance:10})}).setView([40.7477,-73.9862],17);
+const map=L.map("map",{zoomControl:false,preferCanvas:true,renderer:L.canvas({tolerance:10})}).setView([40.7480,-73.9857],17);
 const ESRI="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/";
 L.tileLayer(ESRI+"World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:20,maxNativeZoom:16,attribution:"Esri · Signs: NYC DOT"}).addTo(map);
 map.createPane("labels");map.getPane("labels").style.zIndex=450;map.getPane("labels").style.pointerEvents="none";
@@ -205,7 +205,7 @@ function openPop(b){const t=at(),signs=[...b.signs.values()],s=P.stateAt(signs,t
     <details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
 
 // ---------- saved places
-const PLACES=[{short:"33rd & 5th",ll:[40.7477,-73.9862]}];
+const PLACES=[{short:"33rd & 5th",ll:[40.7480,-73.9857]}];
 let place=0, placeMark=null;
 function showPlace(i){if(placeMark){map.removeLayer(placeMark);placeMark=null;}if(i==null)return;
   placeMark=L.marker(PLACES[i].ll,{interactive:false,icon:L.divIcon({className:"",iconSize:[0,0],html:`<div class="pin"><span>★ ${PLACES[i].short}</span><i></i></div>`})}).addTo(map);}

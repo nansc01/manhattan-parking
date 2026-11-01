@@ -79,7 +79,7 @@
       st="pay";why=s;}
     return {st,why};}
   function nextChange(signs,t0,cur,maxDays){const step=5*6e4,lim=t0+(maxDays||4)*864e5;
-    for(let t=t0+step;t<lim;t+=step){const s=stateAt(signs,t);if(s.st!==cur)return {t,st:s.st,why:s.why};}return null;}
+    for(let t=Math.ceil((t0+1)/step)*step;t<lim;t+=step){const s=stateAt(signs,t);if(s.st!==cur)return {t,st:s.st,why:s.why};}return null;}
 
   const API={HOL,DAYS,DAYS_LONG,ny,hm,parseSign,stateAt,nextChange,classify};
   if(typeof module!=="undefined")module.exports=API; else root.Park=API;
