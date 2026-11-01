@@ -175,7 +175,7 @@ async function loadCell(cx,cy){
       const sign=P.parseSign(w.sign_description||""); const x=+w.sign_x_coord,y=+w.sign_y_coord; if(!x||!y)continue;
       const k=w.order_number+"|"+(w.side_of_street||"");
       let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);
-        const fix=(window.CORRECTIONS||{})[k]; if(fix){b.fixed=fix.date;for(const d of fix.signs){const ps=P.parseSign(d);if(ps)b.signs.set(ps.text,ps);}}}
+        const fix=(window.CORRECTIONS||{})[k]; if(fix){b.fixed=fix.date;b.verifiedFree=!!fix.free;for(const d of fix.signs){const ps=P.parseSign(d);if(ps)b.signs.set(ps.text,ps);}}}
       if(sign)b.signs.set(sign.text,sign);
       if(/PAY-BY-CELL|MUNI-METER/i.test(w.sign_description||""))b.meterLoc=true;
       b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
@@ -205,7 +205,7 @@ function metered(b){ // this block, or its neighbors on the same street and side
     const p=o.pts.values().next().value; if(p&&dist(m.ll,p.ll)<750)return b.metNear=true;}
   return b.metNear=false;}
 function blockState(b,t){const signs=[...b.signs.values()],s=P.stateAt(signs,t);
-  if(s.st==="free"&&metered(b)&&!signs.some(x=>x.kind==="meter"))return {st:"check",why:null};
+  if(s.st==="free"&&!b.verifiedFree&&metered(b)&&!signs.some(x=>x.kind==="meter"))return {st:"check",why:null};
   return s;}
 // ---------- draw: free blocks bold green, everything else thin and faded
 function render(){
