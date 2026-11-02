@@ -19,6 +19,7 @@
   color-scheme:light;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%;margin:0}
 body{background:#eceeec;color:var(--fg);font-family:var(--font);font-size:16px;overflow:hidden;-webkit-tap-highlight-color:transparent}
 #map{position:fixed;inset:0;background:#eceeec}
@@ -307,7 +308,7 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;","
 function between(b){return `between ${b.from} & ${b.to}${SIDE[b.side]?" · "+SIDE[b.side]:""}`;}
 // Street View facing the curb on this side of the block
 function bearing(a,c){const r=Math.PI/180,y=Math.sin((c[1]-a[1])*r)*Math.cos(c[0]*r),x=Math.cos(a[0]*r)*Math.sin(c[0]*r)-Math.sin(a[0]*r)*Math.cos(c[0]*r)*Math.cos((c[1]-a[1])*r);return (Math.atan2(y,x)/r+360)%360;}
-function svUrl(b){const p=b.pts2||[b.mid];let h=0;
+function svUrl(b){if(!b.mid){const q=[...b.pts.values()].map(x=>x.ll);b.mid=q[Math.floor(q.length/2)];b.pts2=q;}const p=b.pts2||[b.mid];let h=0;
   if(p.length>1){const br=bearing(p[0],p[p.length-1]),want={N:0,E:90,S:180,W:270}[b.side];
     if(want!==undefined){const a=(br+90)%360,c=(br+270)%360,dd=x=>Math.min(Math.abs(x-want),360-Math.abs(x-want));h=dd(a)<dd(c)?a:c;}}
   return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${b.mid[0].toFixed(6)},${b.mid[1].toFixed(6)}&heading=${Math.round(h)}&pitch=5&fov=80`;}
@@ -315,7 +316,7 @@ let popBlock=null;
 function openPop(b){popBlock=b;const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n=s.st==="check"?null:P.nextChange(signs,t,s.st,4);
   const u=n?" until "+whenLabel(n.t,t):"";
   const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">Meters are on or next to this block, but the city's data doesn't list their hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
-  L.popup({maxWidth:270}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
+  L.popup({maxWidth:270,autoPanPaddingTopLeft:L.point(12,(document.querySelector('.top').offsetHeight||200)+24),autoPanPaddingBottomRight:L.point(12,(document.getElementById('sheet').offsetHeight||200)+16)}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
     <div class="s">${line}</div>${s.st==="free"?`<a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a>`:""}
     ${b.mine?`<span class="mine">✎ Your fix · ${esc(b.mine)}</span>`:b.fixed?`<div class="between">✓ Sign checked on the street ${esc(b.fixed)}</div>`:""}
     <div class="acts"><a class="ghost" href="${svUrl(b)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M9 21v-6H7.5V10a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v5H15v6"/></svg>See the sign</a>
