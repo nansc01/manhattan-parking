@@ -88,6 +88,39 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:
 .pop .s{font-weight:700;margin:6px 0 10px}
 .pop details{margin-top:10px;color:var(--muted);font-size:.8rem}
 .pop ul{margin:4px 0 0;padding-left:16px}
+.pop .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pop .ghost{display:inline-flex;align-items:center;gap:6px;font:700 .85rem/1 var(--font);padding:10px 12px;border-radius:12px;border:1.5px solid var(--line);background:#fff;color:var(--fg);text-decoration:none}
+.mine{display:inline-block;margin-top:6px;font-size:.78rem;font-weight:700;color:#5b3fd6;background:#efeaff;padding:4px 8px;border-radius:999px}
+/* sign editor */
+.ed-back{position:fixed;inset:0;z-index:2000;background:rgba(15,29,22,.35);display:flex;align-items:flex-end;justify-content:center}
+.ed{width:100%;max-width:520px;max-height:88vh;overflow:auto;background:#fff;border-radius:24px 24px 0 0;padding:16px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;animation:rise .25s ease both}
+.ed h3{margin:0;font:800 1.15rem/1.15 var(--display);text-transform:uppercase}
+.ed .between{margin-top:-6px}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick button{border:1.5px solid var(--line);background:#fff;border-radius:14px;padding:12px 8px;font-weight:700;font-size:.9rem;color:var(--fg);text-align:left;line-height:1.25}
+.quick button small{display:block;font-weight:400;color:var(--muted);font-size:.78rem;margin-top:2px}
+.quick button.on{border-color:var(--go);background:var(--go-soft)}
+.lbl{font-size:.75rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.row{border:1.5px solid var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.row-top{display:flex;gap:6px;align-items:center}
+.kinds{display:flex;gap:4px;flex:1;background:rgba(15,29,22,.06);padding:3px;border-radius:10px}
+.kinds button{flex:1;border:0;background:transparent;border-radius:8px;padding:8px 2px;font-weight:700;font-size:.82rem;color:var(--muted)}
+.kinds button[aria-pressed="true"][data-k="meter"]{background:var(--pay);color:#fff}
+.kinds button[aria-pressed="true"][data-k="stop"]{background:var(--stop);color:#fff}
+.kinds button[aria-pressed="true"][data-k="asp"]{background:var(--fg);color:#fff}
+.del{border:0;background:transparent;font-size:1.3rem;color:var(--muted);width:40px;height:40px;border-radius:10px}
+.dchips{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.dchips button{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:8px 0;font-weight:700;font-size:.8rem;color:var(--muted)}
+.dchips button[aria-pressed="true"]{background:var(--fg);border-color:var(--fg);color:#fff}
+.tm{display:flex;gap:8px;align-items:center}
+.tm input{flex:1;min-width:0;font:inherit;font-size:1rem;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;color:var(--fg);background:#fff}
+.addrow{border:1.5px dashed var(--line);background:#fff;border-radius:14px;padding:12px;font-weight:700;color:var(--fg)}
+.ed-foot{display:flex;gap:8px}
+.ed-foot button{flex:1;border:0;border-radius:14px;padding:14px;font:800 1rem/1 var(--display);text-transform:uppercase;letter-spacing:.02em}
+.save{background:linear-gradient(150deg,var(--go),var(--go-2));color:#fff}
+.cancel{background:rgba(15,29,22,.07);color:var(--fg)}
+.reset{border:0;background:transparent;color:var(--stop);font-weight:700;padding:6px;align-self:center}
+.note{font-size:.8rem;color:var(--muted)}
 .leaflet-control-attribution{font-size:9px;opacity:.6;background:transparent!important}
 </style>
 </head>
@@ -121,6 +154,27 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--me);outline-offset:
     <span class="count" id="count"></span>
   </div>
   <div id="list"><div class="msg">Loading…</div></div>
+</div>
+
+<div class="ed-back" id="edBack" hidden>
+  <div class="ed" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+    <h3 id="edTitle">Fix this block</h3>
+    <div class="between" id="edWhere"></div>
+    <div class="lbl">Quick fix</div>
+    <div class="quick">
+      <button id="qFree">No meter here<small>Free outside the other signs</small></button>
+      <button id="qCustom" class="on">Enter the sign<small>Type what the sign says</small></button>
+    </div>
+    <div id="custom" style="display:flex;flex-direction:column;gap:10px">
+      <div class="lbl">What the sign says</div>
+      <div id="rows" style="display:flex;flex-direction:column;gap:8px"></div>
+      <button class="addrow" id="addRow">+ Add another line from the sign</button>
+      <label class="note" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="replace" checked> Use only my sign, ignore the city's signs for this block</label>
+    </div>
+    <div class="ed-foot"><button class="cancel" id="edCancel">Cancel</button><button class="save" id="edSave">Save</button></div>
+    <button class="reset" id="edReset" hidden>Remove my changes</button>
+    <div class="note">Saved on this phone only.</div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -174,13 +228,14 @@ async function loadCell(cx,cy){
     for(const w of await r.json()){
       const sign=P.parseSign(w.sign_description||""); const x=+w.sign_x_coord,y=+w.sign_y_coord; if(!x||!y)continue;
       const k=w.order_number+"|"+(w.side_of_street||"");
-      let b=blocks.get(k); if(!b){b={on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);
-        const fix=(window.CORRECTIONS||{})[k]; if(fix){b.fixed=fix.date;b.verifiedFree=!!fix.free;for(const d of fix.signs){const ps=P.parseSign(d);if(ps)b.signs.set(ps.text,ps);}}}
-      if(sign)b.signs.set(sign.text,sign);
+      let b=blocks.get(k); if(!b){b={key:k,on:nice(w.on_street),from:nice(w.from_street),to:nice(w.to_street),side:w.side_of_street,signs:new Map(),pts:new Map()};blocks.set(k,b);
+        const fix=(window.CORRECTIONS||{})[k]; if(fix){b.fixed=fix.date;b.fixedFree=!!fix.free;b.verifiedFree=!!fix.free;for(const d of fix.signs){const ps=P.parseSign(d);if(ps)b.signs.set(ps.text,ps);}}}
+      if(sign)(b.city||b.signs).set(sign.text,sign);
       if(/PAY-BY-CELL|MUNI-METER/i.test(w.sign_description||""))b.meterLoc=true;
+      b.dirty=true;
       b.pts.set(x+","+y,{d:+w.distance_from_intersection||0,ll:toLL(x,y)});
     }
-    cells.set(key,"done"); for(const b of blocks.values())delete b.metNear;
+    cells.set(key,"done"); for(const b of blocks.values()){delete b.metNear;if(b.dirty){if(!b.city)b.city=new Map(b.signs);b.dirty=false;applyMine(b);}}
   }catch(e){cells.delete(key);setMsg("Couldn't load parking signs. Check your connection, then move the map.");}
 }
 let loadingN=0;
@@ -193,6 +248,24 @@ async function loadView(){
   loadingN++; if(!document.querySelector(".spot"))setMsg("Loading parking signs…");
   await Promise.all(need.slice(0,30).map(([a,c])=>loadCell(a,c)));
   loadingN--; render();
+}
+
+// ---------- your own fixes (saved on this phone)
+const MINE_KEY="mfp.mysigns.v1";
+let MINE={};try{MINE=JSON.parse(localStorage.getItem(MINE_KEY))||{}}catch(e){}
+function saveMine(){try{localStorage.setItem(MINE_KEY,JSON.stringify(MINE))}catch(e){}}
+const DN=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function dayText(d){const k=d.slice().sort().join("");if(k==="0123456")return "Every day";if(k==="12345")return "Mon–Fri";if(k==="123456")return "Mon–Sat";return d.slice().sort().map(x=>DN[x]).join(", ");}
+const KIND_TXT={meter:"Meter",stop:"No parking",asp:"Street cleaning"};
+function mineSign(r){return {kind:r.kind,rules:[{days:r.days,s:r.s,e:r.e}],text:`Your sign: ${KIND_TXT[r.kind]} ${dayText(r.days)} ${P.hm(r.s)}–${r.e===1440?"midnight":P.hm(r.e)}`};}
+function applyMine(b){
+  const m=MINE[b.key]; b.mine=m?m.date:null; b.verifiedFree=!!b.fixedFree;
+  if(!b.city)b.city=new Map(b.signs);
+  if(!m){b.signs=new Map(b.city);return;}
+  if(m.free){b.signs=new Map(b.city);b.verifiedFree=true;return;}
+  const mine=new Map(m.rows.map(r=>{const x=mineSign(r);return [x.text,x];}));
+  b.signs=m.replace?mine:new Map([...b.city,...mine]);
+  b.verifiedFree=true;
 }
 
 // A block with meters but no passenger meter hours on file: likely paid, city data incomplete
@@ -213,7 +286,7 @@ function render(){
   if(map.getZoom()<15){nums.clearLayers();setMsg("Zoom in to see each block.");return;}
   const t=at(), view=map.getBounds().pad(.2), free=[];
   for(const b of blocks.values()){
-    if(!b.signs.size)continue;
+    if(!b.signs.size&&!b.mine)continue;
     const pts=[...b.pts.values()].sort((a,c)=>a.d-c.d).map(p=>p.ll); if(!view.contains(pts[0]))continue;
     const s=blockState(b,t); b.st=s.st; b.mid=pts[Math.floor(pts.length/2)]; b.pts2=pts;
     if(s.st==="free"){free.push(b);continue;}
@@ -232,12 +305,63 @@ function render(){
 const dirUrl=ll=>`https://www.google.com/maps/dir/?api=1&destination=${ll[0].toFixed(6)},${ll[1].toFixed(6)}&travelmode=driving`;
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 function between(b){return `between ${b.from} & ${b.to}${SIDE[b.side]?" · "+SIDE[b.side]:""}`;}
-function openPop(b){const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n=s.st==="check"?null:P.nextChange(signs,t,s.st,4);
+// Street View facing the curb on this side of the block
+function bearing(a,c){const r=Math.PI/180,y=Math.sin((c[1]-a[1])*r)*Math.cos(c[0]*r),x=Math.cos(a[0]*r)*Math.sin(c[0]*r)-Math.sin(a[0]*r)*Math.cos(c[0]*r)*Math.cos((c[1]-a[1])*r);return (Math.atan2(y,x)/r+360)%360;}
+function svUrl(b){const p=b.pts2||[b.mid];let h=0;
+  if(p.length>1){const br=bearing(p[0],p[p.length-1]),want={N:0,E:90,S:180,W:270}[b.side];
+    if(want!==undefined){const a=(br+90)%360,c=(br+270)%360,dd=x=>Math.min(Math.abs(x-want),360-Math.abs(x-want));h=dd(a)<dd(c)?a:c;}}
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${b.mid[0].toFixed(6)},${b.mid[1].toFixed(6)}&heading=${Math.round(h)}&pitch=5&fov=80`;}
+let popBlock=null;
+function openPop(b){popBlock=b;const t=at(),signs=[...b.signs.values()],s=blockState(b,t),n=s.st==="check"?null:P.nextChange(signs,t,s.st,4);
   const u=n?" until "+whenLabel(n.t,t):"";
   const line=s.st==="check"?`<span style="color:var(--pay)">Meter — check hours on the muni-meter</span><div class="between" style="font-weight:400">Meters are on or next to this block, but the city's data doesn't list their hours.</div>`:s.st==="free"?`<span style="color:var(--go-dark)">Free${n?u:" for 4+ days"}</span>`:s.st==="pay"?`<span style="color:var(--pay)">Pay meter${u}</span>`:`<span style="color:var(--stop)">No parking${u}</span>`;
   L.popup({maxWidth:270}).setLatLng(b.mid).setContent(`<div class="pop"><div class="street">${esc(b.on)}</div><div class="between">${esc(between(b))}</div>
     <div class="s">${line}</div>${s.st==="free"?`<a class="go" href="${dirUrl(b.mid)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.7 11.3 12.7 2.3a1 1 0 0 0-1.4 0l-9 9a1 1 0 0 0 0 1.4l9 9a1 1 0 0 0 1.4 0l9-9a1 1 0 0 0 0-1.4ZM14 14.5V12h-4v3H8v-4a1 1 0 0 1 1-1h5V7.5l3.5 3.5Z"/></svg>Go</a>`:""}
-    ${b.fixed?`<div class="between">✓ Sign checked on the street ${esc(b.fixed)}</div>`:""}<details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
+    ${b.mine?`<span class="mine">✎ Your fix · ${esc(b.mine)}</span>`:b.fixed?`<div class="between">✓ Sign checked on the street ${esc(b.fixed)}</div>`:""}
+    <div class="acts"><a class="ghost" href="${svUrl(b)}" target="_blank" rel="noopener"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M9 21v-6H7.5V10a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v5H15v6"/></svg>See the sign</a>
+    <button class="ghost" onclick="openEditor(popBlock)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/></svg>Sign is different</button></div><details><summary>Signs on this block</summary><ul>${signs.map(x=>`<li>${esc(x.text)}</li>`).join("")}</ul></details></div>`).openOn(map);}
+
+// ---------- sign editor
+let edBlock=null, edRows=[], edFree=false;
+const $=id=>document.getElementById(id);
+function rowHTML(r,i){return `<div class="row" data-i="${i}"><div class="row-top"><div class="kinds">${["meter","stop","asp"].map(k=>`<button data-k="${k}" aria-pressed="${r.kind===k}">${KIND_TXT[k]}</button>`).join("")}</div>
+  ${edRows.length>1?`<button class="del" aria-label="Remove line">×</button>`:""}</div>
+  <div class="dchips">${DN.map((d,j)=>`<button data-d="${j}" aria-pressed="${r.days.includes(j)}">${d}</button>`).join("")}</div>
+  <div class="tm"><input type="time" id="s${i}" value="${tt(r.s)}" aria-label="From"><span class="note">to</span><input type="time" id="e${i}" value="${tt(r.e)}" aria-label="Until (00:00 = midnight)"></div></div>`;}
+const tt=m=>{m=m%1440;return `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;};
+const ft=v=>{const[a,c]=v.split(":").map(Number);return a*60+c;};
+function drawRows(){
+  $("rows").innerHTML=edRows.map(rowHTML).join("");
+  $("rows").querySelectorAll(".row").forEach(el=>{const r=edRows[+el.dataset.i];
+    el.querySelectorAll(".kinds button").forEach(x=>x.onclick=()=>{r.kind=x.dataset.k;drawRows();});
+    el.querySelectorAll(".dchips button").forEach(x=>x.onclick=()=>{const d=+x.dataset.d;r.days=r.days.includes(d)?r.days.filter(z=>z!==d):[...r.days,d];drawRows();});
+    const del=el.querySelector(".del"); if(del)del.onclick=()=>{edRows.splice(+el.dataset.i,1);drawRows();};
+    el.querySelector(`#s${el.dataset.i}`).onchange=e=>{if(e.target.value)r.s=ft(e.target.value);};
+    el.querySelector(`#e${el.dataset.i}`).onchange=e=>{if(e.target.value){const v=ft(e.target.value);r.e=v===0?1440:v;}};
+  });}
+function setMode(free){edFree=free;$("qFree").classList.toggle("on",free);$("qCustom").classList.toggle("on",!free);$("custom").style.display=free?"none":"flex";}
+function openEditor(b){
+  if(!b)return; edBlock=b; map.closePopup();
+  $("edWhere").textContent=`${b.on} · ${between(b)}`;
+  const m=MINE[b.key];
+  edRows=m&&m.rows&&m.rows.length?m.rows.map(r=>({...r,days:r.days.slice()})):[{kind:"meter",days:[1,2,3,4,5],s:19*60,e:1440}];
+  $("replace").checked=m?!!m.replace:false;
+  setMode(!!(m&&m.free)); drawRows();
+  $("edReset").hidden=!m; $("edBack").hidden=false;
+}
+function closeEditor(){$("edBack").hidden=true;}
+$("qFree").onclick=()=>setMode(true); $("qCustom").onclick=()=>setMode(false);
+$("addRow").onclick=()=>{edRows.push({kind:"meter",days:[6],s:8*60,e:1440});drawRows();};
+$("edCancel").onclick=closeEditor;
+$("edBack").addEventListener("click",e=>{if(e.target.id==="edBack")closeEditor();});
+const today=()=>new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+$("edSave").onclick=()=>{
+  if(edFree)MINE[edBlock.key]={date:today(),free:true};
+  else{const rows=edRows.filter(r=>r.days.length&&r.e!==r.s);if(!rows.length){closeEditor();return;}
+    MINE[edBlock.key]={date:today(),replace:$("replace").checked,rows};}
+  saveMine(); applyMine(edBlock); delete edBlock.metNear; closeEditor(); render(); openPop(edBlock);
+};
+$("edReset").onclick=()=>{delete MINE[edBlock.key];saveMine();applyMine(edBlock);closeEditor();render();openPop(edBlock);};
 
 // ---------- saved places
 const PLACES=[{short:"18 W 33rd St",ll:[40.7481,-73.9862]}];
